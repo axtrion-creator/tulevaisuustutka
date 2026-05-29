@@ -7,11 +7,13 @@ export default async function RadarPage() {
   return (
     <div className="page-shell">
       <div className="container">
-        <div className="mb-8">
+        <div className="mb-6">
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#3168CE]">
             Tulevaisuustutka
           </p>
-          <h1 className="mt-2 text-3xl font-semibold text-[#0D2956]">Julkaistut signaalit tutkalla</h1>
+          <h1 className="mt-2 text-4xl font-semibold tracking-normal text-[#0A3A8F]">
+            Julkaistut signaalit tutkalla
+          </h1>
         </div>
         <RadarChart signals={signals} />
       </div>

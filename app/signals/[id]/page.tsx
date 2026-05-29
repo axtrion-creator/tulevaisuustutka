@@ -34,7 +34,7 @@ export default async function SignalDetailPage({ params }: Props) {
           {profile?.role === "admin" ? (
             <Link
               href={`/admin/signals/${detail.id}/edit`}
-              className="focus-ring rounded-md bg-[#0A3A8F] px-4 py-2 text-sm font-semibold text-white"
+              className="focus-ring rounded-md bg-[#0A3A8F] px-4 py-2 text-sm font-semibold !text-[#FFFFFF] hover:bg-[#0D2956] hover:!text-[#FFFFFF]"
             >
               Muokkaa
             </Link>
@@ -115,9 +115,30 @@ export default async function SignalDetailPage({ params }: Props) {
             </Section>
 
             <Section title="Trendit ja suhteet">
-              <p className="text-sm leading-6 text-[#607089]">
-                Trendit ja suhteet näytetään tässä, kun `signal_trends` ja `entity_relationships` ovat käytössä.
-              </p>
+              {detail.relationships.length === 0 ? (
+                <p className="text-sm leading-6 text-[#607089]">Ei kirjattuja suhteita.</p>
+              ) : (
+                <div className="grid gap-3">
+                  {detail.relationships.map((relationship) => (
+                    <div key={relationship.id} className="text-sm">
+                      {relationship.targetEntityType === "signal" && relationship.targetEntityId ? (
+                        <Link className="font-semibold text-[#0A3A8F]" href={`/signals/${relationship.targetEntityId}`}>
+                          {relationship.targetTitle ?? relationship.targetEntityId}
+                        </Link>
+                      ) : (
+                        <p className="font-semibold text-[#0D2956]">{relationship.targetTitle ?? relationship.targetEntityId}</p>
+                      )}
+                      <p className="mt-1 text-[#607089]">{relationship.relationshipTypeName ?? "Suhdetyyppi puuttuu"}</p>
+                      <p className="text-[#607089]">
+                        Vahvuus {relationship.strengthScore ?? "-"} / Vaikutuskerroin {relationship.impactCoefficient ?? "-"}
+                      </p>
+                      {relationship.impactRationale ? (
+                        <p className="mt-2 leading-6 text-[#607089]">{relationship.impactRationale}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )}
             </Section>
           </aside>
         </div>

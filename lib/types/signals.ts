@@ -25,7 +25,8 @@ export type SignalCard = {
   relevanceScore: number | null;
   confidenceScore: number | null;
   noveltyScore: number | null;
-  detectedAt: string | null;
+  extractionDate?: string | null;
+  ingestionMethod?: string | null;
   createdAt: string | null;
   updatedAt: string | null;
 };
@@ -37,7 +38,9 @@ export type SignalDetail = SignalCard & {
   whatIfQuestion: string | null;
   sources: SourceSummary[];
   themes: ThemeSummary[];
+  secondarySectorIds: string[];
   implications: ImplicationSummary[];
+  relationships: RelationshipSummary[];
 };
 
 export type SourceSummary = {
@@ -46,7 +49,13 @@ export type SourceSummary = {
   url: string | null;
   publisher: string | null;
   publicationDate: string | null;
+  sourceTypeId: string | null;
+  doi: string | null;
+  patentNumber: string | null;
   notes: string | null;
+  credibilityScore: number | null;
+  sourceRelevanceScore: number | null;
+  evidenceNote: string | null;
 };
 
 export type ThemeSummary = {
@@ -57,11 +66,25 @@ export type ThemeSummary = {
 
 export type ImplicationSummary = {
   id: string;
+  implicationTypeId: string | null;
   title: string;
   description: string | null;
   secondOrderEffects: string | null;
+  timeHorizonId: string | null;
   potentialImpactScore: number | null;
   actionabilityScore: number | null;
+};
+
+export type RelationshipSummary = {
+  id: string;
+  relationshipTypeId: string | null;
+  relationshipTypeName: string | null;
+  targetEntityType: string | null;
+  targetEntityId: string | null;
+  targetTitle: string | null;
+  strengthScore: number | null;
+  impactCoefficient: number | null;
+  impactRationale: string | null;
 };
 
 export type LookupOption = {
@@ -75,4 +98,9 @@ export type LookupOptions = {
   responseHorizons: LookupOption[];
   directions: LookupOption[];
   statuses: LookupOption[];
+  sourceTypes: LookupOption[];
+  implicationTypes: LookupOption[];
+  timeHorizons: LookupOption[];
+  relationshipTypes: LookupOption[];
+  signalTargets: LookupOption[];
 };

@@ -12,7 +12,7 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 
   const { data } = await supabase
     .from("profiles")
-    .select("id, role, full_name")
+    .select("id, role, display_name")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -23,7 +23,7 @@ export async function getCurrentProfile(): Promise<Profile | null> {
   return {
     id: typeof data.id === "string" ? data.id : user.id,
     role: data.role === "admin" ? "admin" : "viewer",
-    fullName: typeof data.full_name === "string" ? data.full_name : null
+    fullName: typeof data.display_name === "string" ? data.display_name : null
   };
 }
 

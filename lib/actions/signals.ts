@@ -23,11 +23,14 @@ export async function saveSignal(formData: FormData) {
   const title = value(formData, "title");
   const summary = value(formData, "summary");
   const description = value(formData, "description");
+  const sourceTitle = value(formData, "source_title");
   const sourceUrl = value(formData, "source_url");
   const sourceNote = value(formData, "source_note");
+  const extractionDate = value(formData, "extraction_date") || todayDate();
 
   const status = await lookupCode("signal_statuses", statusId);
   validateSignal({
+    statusId,
     status,
     title,
     summary,
@@ -45,10 +48,13 @@ export async function saveSignal(formData: FormData) {
   });
 
   const signalPayload = {
+    signal_code: value(formData, "signal_code") || null,
     title,
     summary,
     description: description || null,
     signal_status_id: statusId || null,
+    extraction_date: extractionDate,
+    ingestion_method: value(formData, "ingestion_method") || "manual",
     updated_at: new Date().toISOString(),
     created_by: profile.id
   };
@@ -64,12 +70,37 @@ export async function saveSignal(formData: FormData) {
 
   const signalId = typeof signalResult.data.id === "string" ? signalResult.data.id : String(signalResult.data.id);
 
-  if (sourceUrl || sourceNote || value(formData, "source_title")) {
+  if (mode === "edit") {
+    await Promise.all([
+      client.from("signal_sources").delete().eq("signal_id", signalId),
+      client.from("signal_secondary_sectors").delete().eq("signal_id", signalId),
+      client.from("signal_themes").delete().eq("signal_id", signalId),
+      client.from("innovation_implications").delete().eq("signal_id", signalId),
+      client.from("entity_relationships").delete().eq("source_entity_type", "signal").eq("source_entity_id", signalId)
+    ]);
+  }
+
+  const hasSource =
+    sourceTitle ||
+    sourceUrl ||
+    sourceNote ||
+    value(formData, "source_publisher") ||
+    value(formData, "source_publication_date") ||
+    value(formData, "source_type_id") ||
+    value(formData, "source_doi") ||
+    value(formData, "source_patent_number");
+
+  if (hasSource) {
     const { data: sourceData, error: sourceError } = await client
       .from("sources")
       .insert({
-        title: value(formData, "source_title") || sourceUrl || "Lähde",
+        title: sourceTitle || sourceUrl || "Lähde",
         url: sourceUrl || null,
+        publisher: value(formData, "source_publisher") || null,
+        publication_date: value(formData, "source_publication_date") || null,
+        source_type_id: value(formData, "source_type_id") || null,
+        doi: value(formData, "source_doi") || null,
+        patent_number: value(formData, "source_patent_number") || null,
         notes: sourceNote || null
       })
       .select("id")
@@ -77,11 +108,53 @@ export async function saveSignal(formData: FormData) {
 
     if (sourceError) throw new Error(sourceError.message);
 
-    const { error: linkError } = await client
-      .from("signal_sources")
-      .insert({ signal_id: signalId, source_id: sourceData.id });
+    const sourceId = typeof sourceData.id === "string" ? sourceData.id : String(sourceData.id);
+    const { error: linkError } = await client.from("signal_sources").insert({
+      signal_id: signalId,
+      source_id: sourceId,
+      credibility_score: numberValue(formData, "credibility_score"),
+      source_relevance_score: numberValue(formData, "source_relevance_score"),
+      evidence_note: value(formData, "evidence_note") || null
+    });
 
     if (linkError) throw new Error(linkError.message);
+  }
+
+  const secondarySectorIds = values(formData, "secondary_sector_ids").filter(
+    (sectorId) => sectorId !== value(formData, "primary_sector_id")
+  );
+  if (secondarySectorIds.length > 0) {
+    const { error: secondarySectorError } = await client.from("signal_secondary_sectors").insert(
+      secondarySectorIds.map((sectorId) => ({
+        signal_id: signalId,
+        sector_id: sectorId
+      }))
+    );
+
+    if (secondarySectorError) throw new Error(secondarySectorError.message);
+  }
+
+  const themeNames = value(formData, "theme_names")
+    .split(",")
+    .map((themeName) => themeName.trim())
+    .filter(Boolean);
+
+  for (const themeName of themeNames) {
+    const { data: themeData, error: themeError } = await client
+      .from("themes")
+      .upsert({ name: themeName }, { onConflict: "name" })
+      .select("id")
+      .single();
+
+    if (themeError) throw new Error(themeError.message);
+
+    const themeId = typeof themeData.id === "string" ? themeData.id : String(themeData.id);
+    const { error: themeLinkError } = await client.from("signal_themes").insert({
+      signal_id: signalId,
+      theme_id: themeId
+    });
+
+    if (themeLinkError) throw new Error(themeLinkError.message);
   }
 
   await client.from("signal_assessments").update({ is_current: false }).eq("signal_id", signalId).eq("is_current", true);
@@ -119,11 +192,36 @@ export async function saveSignal(formData: FormData) {
   if (value(formData, "implication_title") || value(formData, "implication_description")) {
     const { error: implicationError } = await client.from("innovation_implications").insert({
       signal_id: signalId,
+      implication_type_id: value(formData, "implication_type_id") || null,
       title: value(formData, "implication_title") || "Implikaatio",
-      description: value(formData, "implication_description") || null
+      description: value(formData, "implication_description") || null,
+      second_order_effects: value(formData, "second_order_effects") || null,
+      time_horizon_id: value(formData, "implication_time_horizon_id") || null,
+      potential_impact_score: numberValue(formData, "potential_impact_score"),
+      actionability_score: numberValue(formData, "actionability_score")
     });
 
     if (implicationError) throw new Error(implicationError.message);
+  }
+
+  const relationshipTargetId = value(formData, "relationship_target_signal_id");
+  if (relationshipTargetId) {
+    if (relationshipTargetId === signalId) {
+      throw new Error("Signaalia ei voi suhteuttaa itseensä.");
+    }
+
+    const { error: relationshipError } = await client.from("entity_relationships").insert({
+      source_entity_type: "signal",
+      source_entity_id: signalId,
+      target_entity_type: "signal",
+      target_entity_id: relationshipTargetId,
+      relationship_type_id: value(formData, "relationship_type_id") || null,
+      strength_score: numberValue(formData, "relationship_strength_score"),
+      impact_coefficient: numberValue(formData, "relationship_impact_coefficient"),
+      impact_rationale: value(formData, "relationship_impact_rationale") || null
+    });
+
+    if (relationshipError) throw new Error(relationshipError.message);
   }
 
   revalidatePath("/dashboard");
@@ -144,12 +242,25 @@ function value(formData: FormData, key: string) {
   return typeof raw === "string" ? raw.trim() : "";
 }
 
+function values(formData: FormData, key: string) {
+  return formData
+    .getAll(key)
+    .filter((raw): raw is string => typeof raw === "string")
+    .map((raw) => raw.trim())
+    .filter(Boolean);
+}
+
 function numberValue(formData: FormData, key: string) {
   const raw = value(formData, key);
   return raw ? Number(raw) : null;
 }
 
+function todayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function validateSignal(input: {
+  statusId: string;
   status: string;
   title: string;
   summary: string;
@@ -165,6 +276,10 @@ function validateSignal(input: {
   noveltyScore: number | null;
   assessmentRationale: string;
 }) {
+  if (!input.statusId) {
+    throw new Error("Status on pakollinen.");
+  }
+
   if (!input.title || !input.summary || (!input.sourceUrl && !input.sourceNote)) {
     throw new Error("Luonnos vaatii otsikon, tiivistelmän ja vähintään lähteen URL:n tai muistiinpanon.");
   }

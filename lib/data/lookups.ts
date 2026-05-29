@@ -9,14 +9,29 @@ export async function getLookupOptions(): Promise<LookupOptions> {
   }
   const client = supabase;
 
-  const [sectors, responseHorizons, directions, statuses] = await Promise.all([
+  const [sectors, responseHorizons, directions, statuses, sourceTypes, implicationTypes, timeHorizons, relationshipTypes, signalTargets] = await Promise.all([
     getLookup("sectors"),
     getLookup("response_horizons"),
     getLookup("directions"),
-    getLookup("signal_statuses")
+    getLookup("signal_statuses"),
+    getLookup("source_types"),
+    getLookup("implication_types"),
+    getLookup("time_horizons"),
+    getLookup("relationship_types"),
+    getSignalTargets()
   ]);
 
-  return { sectors, responseHorizons, directions, statuses };
+  return {
+    sectors,
+    responseHorizons,
+    directions,
+    statuses,
+    sourceTypes,
+    implicationTypes,
+    timeHorizons,
+    relationshipTypes,
+    signalTargets
+  };
 
   async function getLookup(table: string) {
     const { data } = await client
@@ -37,6 +52,23 @@ export async function getLookupOptions(): Promise<LookupOptions> {
               : ""
     }));
   }
+
+  async function getSignalTargets() {
+    const { data } = await client
+      .from("signals")
+      .select("id, signal_code, title")
+      .order("updated_at", { ascending: false });
+
+    return (data ?? []).map((row) => {
+      const code = typeof row.signal_code === "string" ? row.signal_code : "";
+      const title = typeof row.title === "string" ? row.title : "";
+      return {
+        id: typeof row.id === "string" ? row.id : String(row.id),
+        code,
+        label: code ? `${code} - ${title}` : title
+      };
+    });
+  }
 }
 
 function emptyLookups(): LookupOptions {
@@ -44,6 +76,11 @@ function emptyLookups(): LookupOptions {
     sectors: [],
     responseHorizons: [],
     directions: [],
-    statuses: []
+    statuses: [],
+    sourceTypes: [],
+    implicationTypes: [],
+    timeHorizons: [],
+    relationshipTypes: [],
+    signalTargets: []
   };
 }

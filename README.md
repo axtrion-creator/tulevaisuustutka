@@ -12,6 +12,11 @@ npm install
 
 2. Kopioi `.env.example` tiedostoksi `.env.local` ja lisää Supabase-arvot.
 
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+```
+
 3. Käynnistä kehityspalvelin:
 
 ```bash

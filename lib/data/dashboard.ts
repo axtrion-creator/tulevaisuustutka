@@ -8,8 +8,8 @@ export async function getDashboardStats() {
   return {
     totalPublished: signals.length,
     newSignals: signals.filter((signal) => {
-      const detected = signal.detectedAt ? new Date(signal.detectedAt).getTime() : new Date(signal.createdAt ?? 0).getTime();
-      return Number.isFinite(detected) && now - detected <= thirtyDays;
+      const created = new Date(signal.createdAt ?? 0).getTime();
+      return Number.isFinite(created) && now - created <= thirtyDays;
     }).length,
     bySector: group(signals.map((signal) => signal.sectorName ?? "Luokittelematon")),
     byHorizon: group(signals.map((signal) => signal.horizonName ?? "Ei horisonttia")),

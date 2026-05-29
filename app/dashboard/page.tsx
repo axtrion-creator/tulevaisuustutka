@@ -21,7 +21,7 @@ export default async function DashboardPage() {
           </div>
           <Link
             href="/signals"
-            className="focus-ring inline-flex w-fit items-center gap-2 rounded-md bg-[#0A3A8F] px-4 py-2 text-sm font-semibold text-white"
+            className="focus-ring inline-flex w-fit items-center gap-2 rounded-md bg-[#0A3A8F] px-4 py-2 text-sm font-semibold !text-[#FFFFFF] hover:bg-[#0D2956] hover:!text-[#FFFFFF]"
           >
             Signaalitaulukko <ArrowRight size={16} />
           </Link>
